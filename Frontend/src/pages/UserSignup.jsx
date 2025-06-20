@@ -1,33 +1,47 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-
+import { Link,  useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { UserDataContext } from '../context/userContext';
 
 
 const UserSignup = () => {
-     const [email, setEmail] = useState('');
-        const [password, setPassword] = useState('');
-        const [firstName, setFirstName] = useState('');
-         const [lastName, setLastName] = useState('');
-         const [userData , setUserData] = useState({})
-    
-        const submitHandler = (e) => {
-            e.preventDefault();
-            setUserData({
-                fullName:{
-                    firstName:firstName,
-                    lastName:lastName
-                },
-                email:email,
-                password:password
-            })
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [userData, setUserData] = useState({});
 
-            //console.log(userData);
-            setEmail('');
-            setPassword('');
-            setFirstName('');
-            setLastName('');
+    const navigate = useNavigate();
+    const { user, setUser } = React.useContext(UserDataContext);
+
+    const submitHandler = async (e) => {
+        e.preventDefault();
+        const newUser = {
+            fullname: {
+                firstname: firstName,
+                lastname: lastName
+            },
+            email: email,
+            password: password
+        }
+
+        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/users/register`, newUser);
+        if (response.status === 201) {
+            const data = response.data;
+            setUser(data.user);
+            localStorage.setItem('token', data.token);
+            navigate('/home');
 
         }
+
+
+        //console.log(userData);
+        setEmail('');
+        setPassword('');
+        setFirstName('');
+        setLastName('');
+
+    }
 
     return (
         <div className='p-7 h-screen flex flex-col justify-between'>
@@ -43,14 +57,14 @@ const UserSignup = () => {
                             className=" bg-[#eeeeee] w-1/2 rounded px-4 py-2   text-lg  placeholder:text-base "
                             type='text'
                             value={firstName}
-                            onChange={(e)=>{setFirstName(e.target.value)}}
+                            onChange={(e) => { setFirstName(e.target.value) }}
                             required
                             placeholder='First name'
                         />
                         <input
                             className=" bg-[#eeeeee] w-1/2  rounded px-4 py-2   text-lg  placeholder:text-base"
                             value={lastName}
-                            onChange={(e)=>{setLastName(e.target.value)}}
+                            onChange={(e) => { setLastName(e.target.value) }}
                             type='text'
                             required
                             placeholder='Last name'
@@ -77,7 +91,7 @@ const UserSignup = () => {
                         placeholder='password'
                     />
 
-                    <button className=" bg-[#111] text-white font-semibold mb-3 rounded px-4 py-2  w-full placeholder:text-base ">Signup</button>
+                    <button className=" bg-[#111] text-white font-semibold mb-3 rounded px-4 py-2  w-full placeholder:text-base ">Create account</button>
 
                 </form>
 
@@ -85,13 +99,13 @@ const UserSignup = () => {
 
             </div>
 
-             <div>
+            <div>
                 {/* <Link to="/captain-signup" className=" flex items-center justify-center bg-[#10b461] text-white font-semibold mb-4 rounded px-4 py-2  w-full placeholder:text-base ">Signup as a Captain</Link> */}
 
                 <p className='text-[10px] leading-tight'>This site is protected by reCAPTCHA and the <span className='underline'>Google Privacy
-                     Policy</span> and <span>Terms of Service</span> apply</p>
+                    Policy</span> and <span>Terms of Service</span> apply</p>
             </div>
-            
+
 
 
         </div>
