@@ -1,6 +1,7 @@
 import React, {useContext, useEffect} from 'react'
 import { UserDataContext } from '../context/userContext';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const UserProtectedWrapper = ({
     children
@@ -14,7 +15,7 @@ const UserProtectedWrapper = ({
     if (!token) {
       navigate('/login');
     }
-  }, [token, navigate]);
+  }, [token]);
 
   axios.get('http://localhost:4000/users/profile', {
     headers: {
