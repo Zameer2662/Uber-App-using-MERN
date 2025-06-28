@@ -4,6 +4,8 @@ const port = process.env.PORT ;
 
 const server = http.createServer(app);
 
+const { initializeSocket } = require('./socket');
+initializeSocket(server);
 
 
 

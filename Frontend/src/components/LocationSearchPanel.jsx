@@ -1,45 +1,44 @@
-import React from 'react'
 
-const LocationSearchPanel = (props) => {
-    console.log(props);
-    
+import React  from "react";
 
-    
+const LocationSearchPanel = ({
+  setPanelOpen,
+  setVehiclePanel,
+  suggestions,
+  activeField,
+  setPickup,
+  setDestination
+}) => {
+  const handleSelect = (suggestion) => {
+    if (activeField === 'pickup') {
+      setPickup(suggestion.description);
+    } else if (activeField === 'destination') {
+      setDestination(suggestion.description);
+    }
+    // setPanelOpen(false);
+    // setVehiclePanel(true);
+  };
 
-    // sample array for location
+  return (
+    <div className='p-4'>
+      {suggestions && suggestions.length > 0 ? (
+        suggestions.map((loc, idx) => (
+          <div
+            key={loc.place_id || idx}
+            onClick={() => handleSelect(loc)}
+            className='flex gap-4 border-2 p-3 rounded-xl border-gray-50 hover:border-black cursor-pointer items-center justify-start my-4'
+          >
+            <h2 className='bg-[#eee] h-6 flex items-center justify-center w-14 rounded-full'>
+              <i className='ri-map-pin-fill'></i>
+            </h2>
+            <h4 className='font-medium'>{loc.description}</h4>
+          </div>
+        ))
+      ) : (
+        <p className='text-gray-500 text-center mt-4'>No suggestions found</p>
+      )}
+    </div>
+  );
+};
 
-    const locations = [
-        "24A , Model Town Lahore MERN seekhni hai to Ajao",
-        "24B, Jassar Bybass Narowal MERN seekhni hai to Ajao",
-        "24C , Sadar Cantt Lahore MERN seekhni hai to Ajao",
-        "24D , Kacha Sadiqabad Rahim Yar Khan MERN seekhni hai to Ajao"
-    ]
-
-    return (
-        <div>
-            {/* this is just a sample data */}
-
-            {
-                locations.map(function (elem , idx) {
-                    return <div  key={idx }
-                    onClick={() =>{
-                    props.setVehiclePanel(true)
-                    props.setPanelOpen(false)
-                    }} className='flex gap-4  border-2 p-3 rounded-xl border-gray-50 active:border-black items-center justify-start my-4'>
-                        <h2 className='bg-[#eee] h-6 flex items-center justify-center w-14 rounded-full'><i className="ri-map-pin-fill  "></i></h2>
-                        <h4 className='font-medium'>{elem}</h4>
-                    </div>
-                })
-            }
-
-           
-
-
-
-
-
-        </div>
-    )
-}
-
-export default LocationSearchPanel
+export default LocationSearchPanel;
