@@ -6,8 +6,9 @@ import { CaptainDataContext } from '../context/CaptainContext';
 const CaptainProtectedWrapper = ({
     children
 }) => {
+      const navigate = useNavigate();
     const token = localStorage.getItem('token');
-    const navigate = useNavigate();
+  
     const { captain, setCaptain } = useContext(CaptainDataContext);
 
     const [isLoading, setIsLoading] = useState(false);

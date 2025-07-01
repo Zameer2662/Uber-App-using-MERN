@@ -9,7 +9,11 @@ import VehiclePanel from '../components/VehiclePanel';
 import ConfirmRide from '../components/ConfirmRide';
 import LookingForDriver from '../components/LookingForDriver';
 import WaitingForDriver from '../components/WaitingForDriver';
-
+import socketContext from '../context/SocketContext';
+import userContext, { UserDataContext } from '../context/userContext';
+import { useEffect } from 'react';
+import { use } from 'react';
+import { useContext } from 'react';
 const Home = () => {
   const [pickup, setPickup] = useState('');
   const [destination, setDestination] = useState('');
@@ -25,6 +29,9 @@ const Home = () => {
   const [fare, setFare] = useState({});
   const [vehicleType, setVehicleType] = useState(null);
 
+  const { socket } = useContext(socketContext);
+  const { user } = userContext(UserDataContext);
+  // Refs for GSAP animations
 
   const panelRef = useRef(null);
   const vehiclePanelref = useRef(null);
@@ -153,6 +160,10 @@ const Home = () => {
     console.log(response.data);
 
   }
+
+  useEffect(() => {
+   socket.emit('join', { userType: 'user', userId: user._id });
+  },[user])
 
   return (
     <div className='h-screen relative overflow-hidden'>

@@ -1,10 +1,10 @@
 const http = require('http');
 const app = require('./app');
-const port = process.env.PORT ;
+const {initializeSocket} = require('./socket');
+const port = process.env.PORT;
 
 const server = http.createServer(app);
 
-const { initializeSocket } = require('./socket');
 initializeSocket(server);
 
 

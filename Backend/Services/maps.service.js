@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { response } = require('express');
+const CaptainModel = require('../models/captain.model');
 
 
 module.exports.getAddressCoordinate = async (address) => {
@@ -20,7 +21,7 @@ module.exports.getAddressCoordinate = async (address) => {
             const location = results[0].geometry.location;
             return {
                 ltd: location.lat,
-                lang: location.lng
+                lng: location.lng
             };
         } else {
             throw new Error('No coordinates found for the given address');
@@ -76,3 +77,18 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
         throw new Error('Failed to fetch autocomplete suggestions: ' + error.message);
     }
 };
+
+module.exports.getCaptainsInTheRadius = async (ltd , lng ,radius) =>{
+ 
+
+    //radius in km 
+    const captains =  await CaptainModel.find({
+          location:{
+            $geoWithin:{
+                $centerSphere:[[ltd ,lng] , radius/6371]
+                }
+            }
+    });
+
+    return captains;
+}
