@@ -64,17 +64,29 @@ const captainSchema = new mongoose.Schema({
     },
 
     location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+        },
+        // Keep old fields for backward compatibility
         ltd: {
             type: Number,
-            
         },
         lng: {
             type: Number,
-            
         }
     }
 
 })
+
+// Create 2dsphere index for geospatial queries on coordinates
+captainSchema.index({ 'location.coordinates': '2dsphere' });
+// Also keep index on old format for backward compatibility  
+captainSchema.index({ 'location.ltd': 1, 'location.lng': 1 });
 
 captainSchema.methods.generateAuthToken =  function () {
     const token = jwt.sign({ _id: this._id }, process.env.JWT_SECRET, { expiresIn: '7d' });

@@ -17,7 +17,6 @@ import CaptainRiding from './pages/CaptainRiding'
 
 const App = () => {
   const ans = useContext(UserDataContext)
-  console.log(ans);
   
   return (
     <div>

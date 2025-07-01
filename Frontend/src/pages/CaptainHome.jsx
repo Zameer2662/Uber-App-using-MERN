@@ -8,25 +8,39 @@ import ConfirmRidePopup from '../components/ConfirmRidePopup'
 
 import { CaptainDataContext } from '../context/CaptainContext'
 import SocketContext from '../context/SocketContext'
+import axios from 'axios'
 
 
 
 
 const CaptainHome = () => {
 
-  const [ridePopupPanel, setRidePopupPanel] = useState(true);
+  const [ridePopupPanel, setRidePopupPanel] = useState(false);
+  const [ride, setRide] = useState(null); // Assuming ride data will be set when a new ride request comes in
   const ridePopupPanelref = useRef(null)
 
   const [confirmRidePopupPanel, setConfirmRidePopupPanel] = useState(false);
   const ConfirmRidePopupPanelref = useRef(null)
 
-  const { socket } = useContext(SocketContext);
+  const { socket, isConnected, connectionError } = useContext(SocketContext);
   const { captain } = useContext(CaptainDataContext);
+
+  // Show connection status
+  useEffect(() => {
+    if (isConnected && captain?._id) {
+      console.log('✅ Captain connected successfully:', {
+        name: `${captain.fullname.firstname} ${captain.fullname.lastname}`,
+        id: captain._id
+      });
+    }
+  }, [isConnected, captain]);
 
 
   useEffect(() => {
-  if (!captain || !captain._id) return; // Prevent running if captain is not loaded
-
+  if (!captain || !captain._id || !socket || !isConnected) {
+    return;
+  }
+  
   socket.emit('join', {
     userId: captain._id,
     userType: 'captain'
@@ -35,14 +49,16 @@ const CaptainHome = () => {
   const updateLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(position => {
-        console.log(captain._id, position.coords.latitude, position.coords.longitude);
-
+        const location = {
+          ltd: position.coords.latitude, 
+          lng: position.coords.longitude
+        };
+        
+        console.log('📍 Updating captain location:', location);
+        
         socket.emit('update-location-captain', {
           userId: captain._id,
-          location: {
-            ltd: position.coords.latitude,
-            lang: position.coords.longitude
-          }
+          location: location
         });
       });
     }
@@ -51,8 +67,43 @@ const CaptainHome = () => {
   const locationInterval = setInterval(updateLocation, 10000);
   updateLocation();
 
-  return () => clearInterval(locationInterval);
-}, [captain, socket]);
+  return () => {
+    clearInterval(locationInterval);
+  };
+}, [captain, socket, isConnected]);
+
+useEffect(() => {
+  if (!socket || !isConnected) {
+    return;
+  }
+
+  // Listen for new ride requests
+  socket.on('new-ride', (data) => {
+    console.log('🚨 New ride request received:', {
+      rideId: data._id,
+      pickup: data.pickup,
+      destination: data.destination,
+      user: data.user?.fullname?.firstname || 'Unknown'
+    });
+    setRide(data);
+    setRidePopupPanel(true);
+  });
+
+  return () => {
+    socket.off('new-ride');
+  };
+}, [socket, isConnected]);
+
+ 
+ async function confirmRide() {
+     const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/confirm`, {
+      rideId: ride._id,
+      captainId: captain._id
+    })
+
+    setRidePopupPanel(false);
+    setConfirmRidePopupPanel(true);
+ }
 
 
   useGSAP(function () {
@@ -107,7 +158,12 @@ const CaptainHome = () => {
 
 
       <div ref={ridePopupPanelref} className='fixed w-full z-10 bottom-0  translate-y-full bg-white px-3 py-10 pt-12'>
-        <RidePopup setRidePopupPanel={setRidePopupPanel} setConfirmRidePopupPanel={setConfirmRidePopupPanel} />
+        <RidePopup 
+        ride={ride} 
+        setRidePopupPanel={setRidePopupPanel} 
+        setConfirmRidePopupPanel={setConfirmRidePopupPanel}
+        confirmRide={confirmRide}
+        />
       </div>
 
       <div ref={ConfirmRidePopupPanelref} className='fixed w-full  h-screen z-10 bottom-0  translate-y-full bg-white px-3 py-10 pt-12'>

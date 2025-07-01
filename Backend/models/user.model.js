@@ -35,6 +35,15 @@ const userSchema = new mongoose.Schema({
         type: String,
      },
 
+     location: {
+        ltd: {
+            type: Number,
+        },
+        lng: {
+            type: Number,
+        }
+     },
+
 })
 
 userSchema.methods.generateAuthToken =  function() {

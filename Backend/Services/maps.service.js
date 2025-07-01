@@ -78,17 +78,63 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
     }
 };
 
-module.exports.getCaptainsInTheRadius = async (ltd , lng ,radius) =>{
- 
+// Helper function to calculate distance between two coordinates
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
 
-    //radius in km 
-    const captains =  await CaptainModel.find({
-          location:{
-            $geoWithin:{
-                $centerSphere:[[ltd ,lng] , radius/6371]
+module.exports.getCaptainsInTheRadius = async (ltd, lng, radius) => {
+    try {
+        // Try GeoJSON format first (more efficient)
+        let captains = await CaptainModel.find({
+            'location.coordinates': {
+                $geoWithin: {
+                    $centerSphere: [[lng, ltd], radius / 6371] // [longitude, latitude]
                 }
             }
-    });
+        });
 
-    return captains;
+        // If no results with GeoJSON, try legacy format
+        if (captains.length === 0) {
+            captains = await CaptainModel.find({
+                'location.ltd': { $exists: true, $ne: null },
+                'location.lng': { $exists: true, $ne: null }
+            });
+            
+            // Filter manually for legacy format
+            captains = captains.filter(captain => {
+                if (!captain.location || !captain.location.ltd || !captain.location.lng) return false;
+                
+                const distance = calculateDistance(ltd, lng, captain.location.ltd, captain.location.lng);
+                return distance <= radius;
+            });
+        }
+
+        return captains;
+    } catch (error) {
+        console.error('Error finding captains in radius:', error);
+        throw error;
+    }
 }
+
+// Helper function to get all connected captains for testing
+module.exports.getAllConnectedCaptains = async () => {
+    try {
+        const connectedCaptains = await CaptainModel.find({
+            socketId: { $exists: true, $ne: null }
+        });
+        
+        return connectedCaptains;
+    } catch (error) {
+        console.error('Error getting connected captains:', error);
+        throw error;
+    }
+};

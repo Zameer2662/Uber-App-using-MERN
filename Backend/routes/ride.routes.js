@@ -20,4 +20,10 @@ router.get('/get-fare',
     query('destination').isString().isLength({ min: 3 }).withMessage('Invalid Destination Address'),
     rideController.getFare
 )
+
+router.post('/confirm',
+    authMiddleware.authCaptain,
+    body('rideId').isString().withMessage('Invalid ride ID'),
+    rideController.confirmRide
+)
 module.exports = router

@@ -15,58 +15,118 @@ function initializeSocket(server) {
     });
 
     io.on('connection', (socket) => {
-        console.log(`Socket connected: ${socket.id}`);
+        console.log(`🔌 Socket connected: ${socket.id}`);
         connectedSockets.set(socket.id, socket);
 
         socket.on('join', async (data) => {
             const { userId, userType } = data;
-            console.log(`User joined: ${userId}, Type: ${userType}`);
+            console.log(`👤 ${userType} joined:`, { userId, socketId: socket.id });
 
-            if (userType === 'user') {
-                await userModel.findByIdAndUpdate(userId, { socketId: socket.id });
-            } else if (userType === 'captain') {
-                await captainModel.findByIdAndUpdate(userId, { socketId: socket.id });
+            try {
+                if (userType === 'user') {
+                    await userModel.findByIdAndUpdate(userId, { socketId: socket.id }, { new: true });
+                    console.log(`✅ User socket updated: ${userId} -> ${socket.id}`);
+                } else if (userType === 'captain') {
+                    const captain = await captainModel.findByIdAndUpdate(userId, { socketId: socket.id }, { new: true });
+                    console.log(`✅ Captain socket updated:`, {
+                        name: captain ? `${captain.fullname.firstname} ${captain.fullname.lastname}` : 'Unknown',
+                        id: userId,
+                        socketId: socket.id
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Error updating socket ID:', error);
             }
         });
 
-        socket.on('update-location-captain ', async (data) => {
+        socket.on('update-location-captain', async (data) => {
             const { userId, location } = data;
+            
             if (
                 !location ||
                 typeof location.ltd !== 'number' ||
-                typeof location.lang !== 'number' ||
+                typeof location.lng !== 'number' ||
                 isNaN(location.ltd) ||
-                isNaN(location.lang)
+                isNaN(location.lng)
             ) {
                 socket.emit('error', { message: 'Invalid location data' });
                 return;
             }
 
-            await captainModel.findByIdAndUpdate(userId,
-                {
-                    location: {
-                        ltd: location.ltd,
-                        lang: location.lang
-                    }
+            try {
+                const captain = await captainModel.findByIdAndUpdate(userId,
+                    {
+                        location: {
+                            type: 'Point',
+                            coordinates: [location.lng, location.ltd], // [longitude, latitude] for GeoJSON
+                            ltd: location.ltd,
+                            lng: location.lng
+                        }
+                    }, { new: true });
+                
+                console.log('📍 Captain location updated:', {
+                    name: captain ? `${captain.fullname.firstname} ${captain.fullname.lastname}` : 'Unknown',
+                    location: { lat: location.ltd, lng: location.lng }
                 });
+                
+            } catch (error) {
+                console.error('❌ Error updating captain location:', error);
+                socket.emit('error', { message: 'Failed to update location' });
+            }
+        });
+
+        socket.on('update-location-user', async (data) => {
+            const { userId, location } = data;
+            
+            if (
+                !location ||
+                typeof location.ltd !== 'number' ||
+                typeof location.lng !== 'number' ||
+                isNaN(location.ltd) ||
+                isNaN(location.lng)
+            ) {
+                socket.emit('error', { message: 'Invalid location data' });
+                return;
+            }
+
+            try {
+                const user = await userModel.findByIdAndUpdate(userId,
+                    {
+                        location: {
+                            ltd: location.ltd,
+                            lng: location.lng
+                        }
+                    }, { new: true });
+                
+                console.log('📍 User location updated:', {
+                    name: user ? `${user.fullname.firstname} ${user.fullname.lastname}` : 'Unknown',
+                    location: { lat: location.ltd, lng: location.lng }
+                });
+                
+            } catch (error) {
+                console.error('❌ Error updating user location:', error);
+                socket.emit('error', { message: 'Failed to update location' });
+            }
         })
 
         socket.on('disconnect', () => {
-            console.log(`Socket disconnected: ${socket.id}`);
-
+            console.log(`🔌 Socket disconnected: ${socket.id}`);
+            connectedSockets.delete(socket.id);
         });
 
         // Add more event handlers here if needed
     });
 }
 
-function sendMessageToSocketId(socketId, message) {
-    const socket = connectedSockets.get(socketId);
+function sendMessageToSocketId(socketId, messageObject) {
     if (io) {
-        io.to(socketId).emit('message', message);
-        console.log(`Message sent to ${socketId}:`, message);
+        io.to(socketId).emit(messageObject.event, messageObject.data);
+        console.log(`📤 Message sent to ${socketId}:`, {
+            event: messageObject.event,
+            rideId: messageObject.data?._id
+        });
     } else {
-        console.log(`Socket is not initialized.`);
+        console.log(`❌ Socket is not initialized.`);
     }
 }
 

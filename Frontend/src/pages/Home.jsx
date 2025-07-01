@@ -29,8 +29,8 @@ const Home = () => {
   const [fare, setFare] = useState({});
   const [vehicleType, setVehicleType] = useState(null);
 
-  const { socket } = useContext(socketContext);
-  const { user } = userContext(UserDataContext);
+  const { socket, isConnected, connectionError } = useContext(socketContext);
+  const { user } = useContext(UserDataContext);
   // Refs for GSAP animations
 
   const panelRef = useRef(null);
@@ -141,29 +141,83 @@ const Home = () => {
     })
     setFare(response.data);
 
-    console.log(response.data);
-
 
   }
 
   async function createRide() {
-    const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/create`, {
-      pickup,
-      destination,
-      vehicleType
-    }, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
-    })
-
-    console.log(response.data);
-
+    try {
+      console.log('🚗 Creating ride request...', {
+        pickup,
+        destination,
+        vehicleType
+      });
+      
+      const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/create`, {
+        pickup,
+        destination,
+        vehicleType
+      }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      console.log('✅ Ride created successfully, looking for driver...');
+      
+      // Move to looking for driver state
+      setConfirmRidePanel(false);
+      setvehicleFound(true);
+      
+    } catch (error) {
+      console.error('❌ Error creating ride:', error);
+      alert('Error creating ride. Please try again.');
+    }
   }
 
   useEffect(() => {
-   socket.emit('join', { userType: 'user', userId: user._id });
-  },[user])
+    if (!user || !user._id || !socket || !isConnected) {
+      console.log('⏳ Waiting for user data and socket connection...', {
+        hasUser: !!user,
+        hasSocket: !!socket,
+        isConnected
+      });
+      return;
+    }
+    
+    console.log('🚀 User connected successfully:', {
+      name: `${user.fullname.firstname} ${user.fullname.lastname}`,
+      id: user._id
+    });
+    
+    socket.emit('join', { userType: 'user', userId: user._id });
+
+    socket.on('ride-confirmed', ride => {
+      console.log('✅ Ride confirmed by captain:', ride._id);
+      setWaitingForDriver(true);
+    });
+    
+    const updateLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          socket.emit('update-location-user', {
+            userId: user._id,
+            location: {
+              ltd: position.coords.latitude,
+              lng: position.coords.longitude
+            }
+          });
+        });
+      }
+    };
+
+    const locationInterval = setInterval(updateLocation, 10000);
+    updateLocation();
+
+    return () => {
+      clearInterval(locationInterval);
+      socket.off('ride-confirmed');
+    };
+  }, [user, socket, isConnected]);
 
   return (
     <div className='h-screen relative overflow-hidden'>
@@ -251,7 +305,7 @@ const Home = () => {
 
       <div
         ref={confirmRidePanelref}
-        className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'
+        className='fixed w-full z-30 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'
       >
         <ConfirmRide
           pickup={pickup}
@@ -267,7 +321,7 @@ const Home = () => {
 
       <div
         ref={vehicleFoundRef}
-        className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'
+        className='fixed w-full z-20 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'
       >
         <LookingForDriver
           createRide={createRide}

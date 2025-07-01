@@ -1,37 +1,93 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
 const SocketContext = createContext();
- const socket  = io(`${import.meta.env.VITE_BASE_URL}`); // Change URL as needed
 
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
-
+  const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
 
   useEffect(() => {
-   
-    socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
+    // Check if backend URL is available
+    const backendUrl = import.meta.env.VITE_BASE_URL;
+    
+    if (!backendUrl) {
+      console.error('VITE_BASE_URL is not defined in environment variables');
+      setConnectionError('Backend URL not configured');
+      return;
+    }
+
+    // Check if backend server is running
+    fetch(`${backendUrl}/health`)
+      .then(response => {
+        if (!response.ok) {
+          console.warn('Backend server might have issues');
+        }
+      })
+      .catch(() => {
+        console.error('Backend server not responding. Please start: node server.js');
+      });
+
+    // Create socket connection with proper error handling
+    const newSocket = io(backendUrl, {
+      transports: ['polling', 'websocket'], // Start with polling, then try websocket
+      timeout: 20000, // 20 second timeout
+      reconnection: true,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 3,
+      maxHttpBufferSize: 1e8,
+      forceNew: true,
+      autoConnect: true
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+    newSocket.on('connect', () => {
+      setIsConnected(true);
+      setConnectionError(null);
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+    newSocket.on('disconnect', (reason) => {
+      setIsConnected(false);
+      // Only reconnect if server disconnected, not if user refreshed page
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
     });
 
-    // return () => {
-    //   socketRef.current.disconnect();
-    // };
+    newSocket.on('connect_error', (error) => {
+      setConnectionError(error.message);
+      setIsConnected(false);
+      
+      if (error.message.includes('xhr poll error') || error.message.includes('websocket error')) {
+        console.error('Backend server not running. Start with: node server.js');
+      }
+    });
+
+    newSocket.on('reconnect', () => {
+      setIsConnected(true);
+      setConnectionError(null);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
+
+
 
  
 
   return (
-    <SocketContext.Provider value={{ socket }}> 
+    <SocketContext.Provider value={{ 
+      socket, 
+      isConnected, 
+      connectionError 
+    }}> 
       {children}
     </SocketContext.Provider>
   );

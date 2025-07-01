@@ -22,6 +22,15 @@ app.get('/' , (req,res) => {
 
 });
 
+// Health check endpoint for frontend
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'Backend server is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use('/users', userRoutes);
 app.use('/captains', captainRoutes);
 app.use('/maps', mapsRoutes);

@@ -2,10 +2,22 @@ import React,{useContext} from 'react'
 import { CaptainDataContext } from '../context/CaptainContext'
 
 const CaptainDetails = () => {
-    const { captain } = useContext(CaptainDataContext);
+    const { captain, loading } = useContext(CaptainDataContext);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center py-8">
+                <div className="text-gray-600">Loading captain details...</div>
+            </div>
+        );
+    }
 
     if (!captain || !captain.fullname) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex justify-center items-center py-8">
+                <div className="text-red-600">Captain data not available</div>
+            </div>
+        );
     }
 
     return (
