@@ -30,7 +30,15 @@ const CaptainHome = () => {
     if (isConnected && captain?._id) {
       console.log('✅ Captain connected successfully:', {
         name: `${captain.fullname.firstname} ${captain.fullname.lastname}`,
-        id: captain._id
+        id: captain._id,
+        email: captain.email,
+        vehicle: captain.vehicle?.vehicleType
+      });
+    } else {
+      console.log('⚠️ Captain connection status:', {
+        isConnected,
+        hasCaptain: !!captain,
+        captainId: captain?._id
       });
     }
   }, [isConnected, captain]);
@@ -96,13 +104,44 @@ useEffect(() => {
 
  
  async function confirmRide() {
-     const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/confirm`, {
-      rideId: ride._id,
-      captainId: captain._id
-    })
+   try {
+     if (!ride || !ride._id) {
+       console.error('❌ No ride data available');
+       alert('No ride data available');
+       return;
+     }
 
-    setRidePopupPanel(false);
-    setConfirmRidePopupPanel(true);
+     if (!captain || !captain._id) {
+       console.error('❌ No captain data available');
+       alert('Captain data not available');
+       return;
+     }
+
+     console.log('🚨 Captain confirming ride:', {
+       rideId: ride._id,
+       captainId: captain._id,
+       captainName: `${captain.fullname?.firstname} ${captain.fullname?.lastname}`
+     });
+
+     const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/confirm`, {
+       rideId: ride._id,
+       captainId: captain._id,
+     }, {
+       headers: {
+         Authorization: `Bearer ${localStorage.getItem('token')}`
+       }
+     });
+
+     console.log('✅ Ride confirmed successfully:', response.data);
+ 
+     setRidePopupPanel(false);
+     setConfirmRidePopupPanel(true);
+     
+   } catch (error) {
+     console.error('❌ Error confirming ride:', error);
+     console.error('Error details:', error.response?.data);
+     alert('Error confirming ride. Please try again.');
+   }
  }
 
 
@@ -167,7 +206,11 @@ useEffect(() => {
       </div>
 
       <div ref={ConfirmRidePopupPanelref} className='fixed w-full  h-screen z-10 bottom-0  translate-y-full bg-white px-3 py-10 pt-12'>
-        <ConfirmRidePopup setRidePopupPanel={setRidePopupPanel} setConfirmRidePopupPanel={setConfirmRidePopupPanel} />
+        <ConfirmRidePopup
+          ride={ride}
+          setRidePopupPanel={setRidePopupPanel}
+          setConfirmRidePopupPanel={setConfirmRidePopupPanel}
+        />
       </div>
 
     </div>

@@ -14,6 +14,7 @@ import userContext, { UserDataContext } from '../context/userContext';
 import { useEffect } from 'react';
 import { use } from 'react';
 import { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 const Home = () => {
   const [pickup, setPickup] = useState('');
   const [destination, setDestination] = useState('');
@@ -28,9 +29,12 @@ const Home = () => {
   const [waitingForDriver, setWaitingForDriver] = useState(false);
   const [fare, setFare] = useState({});
   const [vehicleType, setVehicleType] = useState(null);
+  const [currentRide, setCurrentRide] = useState(null);
 
   const { socket, isConnected, connectionError } = useContext(socketContext);
   const { user } = useContext(UserDataContext);
+
+  const navigate = useNavigate();
   // Refs for GSAP animations
 
   const panelRef = useRef(null);
@@ -122,9 +126,19 @@ const Home = () => {
   }, [vehicleFound]);
 
   useGSAP(() => {
-    gsap.to(waitingForDriverRef.current, {
-      transform: waitingForDriver ? 'translateY(0)' : 'translateY(100%)'
+    console.log('🎬 WaitingForDriver GSAP animation triggered:', { 
+      waitingForDriver, 
+      currentRide: currentRide?._id || 'none' 
     });
+    
+    if (waitingForDriverRef.current) {
+      gsap.to(waitingForDriverRef.current, {
+        transform: waitingForDriver ? 'translateY(0)' : 'translateY(100%)',
+        duration: 0.3
+      });
+    } else {
+      console.warn('⚠️ waitingForDriverRef.current is null');
+    }
   }, [waitingForDriver]);
 
 
@@ -151,6 +165,10 @@ const Home = () => {
         destination,
         vehicleType
       });
+      
+      // Reset any previous ride states
+      setWaitingForDriver(false);
+      setCurrentRide(null);
       
       const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/create`, {
         pickup,
@@ -186,15 +204,51 @@ const Home = () => {
     
     console.log('🚀 User connected successfully:', {
       name: `${user.fullname.firstname} ${user.fullname.lastname}`,
-      id: user._id
+      id: user._id,
+      socketId: socket.id
     });
     
     socket.emit('join', { userType: 'user', userId: user._id });
 
-    socket.on('ride-confirmed', ride => {
-      console.log('✅ Ride confirmed by captain:', ride._id);
-      setWaitingForDriver(true);
+    // Add debug for all socket events
+    socket.onAny((eventName, ...args) => {
+      console.log('📡 Socket event received:', eventName, args);
     });
+
+    const handleRideConfirmed = (ride) => {
+      console.log('✅ Ride confirmed by captain:', ride._id);
+      console.log('🚗 Captain details:', {
+        name: ride.captain ? `${ride.captain.fullname?.firstname} ${ride.captain.fullname?.lastname}` : 'Unknown',
+        vehicle: ride.captain?.vehicle?.vehicleType || 'Unknown',
+        otp: ride.otp
+      });
+      
+      // Store the current ride data
+      setCurrentRide(ride);
+      
+      // Hide looking for driver and show waiting for driver panel
+      setvehicleFound(false);
+      setWaitingForDriver(true);
+      
+      console.log('📋 Setting waitingForDriver to true, vehicleFound to false');
+      console.log('🎯 Current ride set to:', ride._id);
+    };
+
+    socket.on('ride-confirmed', handleRideConfirmed);
+
+    const handleRideStarted = (ride) => {
+      console.log('🚗 Ride started:', ride._id)
+      setWaitingForDriver(false);
+      // Navigate with ride data
+      navigate('/riding', { 
+        state: { 
+          ride: ride,
+          rideStarted: true 
+        } 
+      })
+    };
+
+    socket.on('ride-started', handleRideStarted);
     
     const updateLocation = () => {
       if (navigator.geolocation) {
@@ -215,9 +269,43 @@ const Home = () => {
 
     return () => {
       clearInterval(locationInterval);
-      socket.off('ride-confirmed');
+      socket.off('ride-confirmed', handleRideConfirmed);
+      socket.off('ride-started', handleRideStarted);
     };
-  }, [user, socket, isConnected]);
+  }, [user, socket, isConnected, navigate]);
+
+  // Emergency test function - remove after debugging
+  const testWaitingForDriver = () => {
+    console.log('🧪 Manual test: Showing WaitingForDriver popup');
+    const testRide = {
+      _id: 'test-ride-123',
+      captain: {
+        fullname: { firstname: 'Test', lastname: 'Captain' },
+        vehicle: { plate: 'TEST123', color: 'White', vehicleType: 'car' }
+      },
+      otp: '123456',
+      fare: 150
+    };
+    setCurrentRide(testRide);
+    setWaitingForDriver(true);
+    setvehicleFound(false);
+  };
+
+  // Add to window for testing (remove after debugging)
+  useEffect(() => {
+    window.testWaitingForDriver = testWaitingForDriver;
+    return () => delete window.testWaitingForDriver;
+  }, []);
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔄 State changed:', {
+      waitingForDriver,
+      vehicleFound,
+      confirmRidePanel,
+      currentRide: currentRide?._id || 'none'
+    });
+  }, [waitingForDriver, vehicleFound, confirmRidePanel, currentRide]);
 
   return (
     <div className='h-screen relative overflow-hidden'>
@@ -335,9 +423,15 @@ const Home = () => {
 
       <div
         ref={waitingForDriverRef}
-        className='fixed w-full z-10 bottom-0 bg-white px-3 py-6 pt-12'
+        className='fixed w-full z-50 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'
       >
-        <WaitingForDriver waitingForDriver={waitingForDriver} />
+        <WaitingForDriver 
+          waitingForDriver={waitingForDriver}
+          ride={currentRide}
+          pickup={pickup}
+          destination={destination}
+          setWaitingForDriver={setWaitingForDriver}
+        />
       </div>
     </div>
   );

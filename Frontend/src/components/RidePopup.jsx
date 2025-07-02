@@ -41,7 +41,7 @@ const RidePopup = (props) => {
                     <div className='flex items-center gap-5  p-3 '>
                         <i className="ri-currency-fill"></i>
                         <div className=''>
-                            <h3 className='text-lg font-medium'>{props.ride?.fare}</h3>
+                            <h3 className='text-lg font-medium'>Rs.{props.ride?.fare}</h3>
                             <p className='text-sm -mt-1 text-gray-600'>Cash Cash</p>
                         </div>
                     </div>

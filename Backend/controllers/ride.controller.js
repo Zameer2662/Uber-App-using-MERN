@@ -124,18 +124,110 @@ module.exports.confirmRide = async(req , res) => {
         return res.status(400).json({errors : errors.array()});
     }
 
-    const {rideId} = req.body;
+    const {rideId, captainId} = req.body;
+
+    console.log('🚨 Captain confirming ride:', { rideId, captainId });
 
     try {
-        const ride = await rideService.confirmRide(rideId);
+        const ride = await rideService.confirmRide(rideId, captainId);
 
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-confirmed',
-            data: ride
+        console.log('📱 Sending ride confirmation to user:', {
+            userId: ride.user._id,
+            userName: `${ride.user.fullname.firstname} ${ride.user.fullname.lastname}`,
+            userSocket: ride.user.socketId,
+            captainName: `${ride.captain.fullname.firstname} ${ride.captain.fullname.lastname}`,
+            otp: ride.otp
         });
+
+        // Send response first
+        res.status(200).json(ride);
+
+        // Then send socket notification
+        if (ride.user.socketId) {
+            console.log('🚀 Emitting ride-confirmed event to user socket:', ride.user.socketId);
+            sendMessageToSocketId(ride.user.socketId, {
+                event: 'ride-confirmed',
+                data: ride
+            });
+            console.log('✅ Socket event sent successfully');
+        } else {
+            console.log('⚠️ User has no active socket connection');
+        }
         
-        return res.status(200).json(ride);
     } catch (error) {
-        return res.status(500).json({message: error.message});
+        console.error('❌ Error confirming ride:', error.message);
+        if (!res.headersSent) {
+            return res.status(500).json({message: error.message});
+        }
     }
+}
+
+module.exports.startRide = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { rideId, otp } = req.query;
+
+    console.log('🚀 Captain starting ride:', { rideId, otp });
+
+    try {
+        // Find the ride by ID
+        const ride = await rideModel.findById(rideId).populate('user captain').select('+otp');
+        if (!ride) {
+            return res.status(404).json({ message: 'Ride not found' });
+        }
+
+        console.log('📝 Ride details:', {
+            rideId: ride._id,
+            status: ride.status,
+            otp: ride.otp,
+            providedOtp: otp
+        });
+
+        // Check if ride is already started or completed
+        if (ride.status === 'ongoing') {
+            return res.status(400).json({ message: 'Ride already started' });
+        }
+        if (ride.status === 'completed') {
+            return res.status(400).json({ message: 'Ride already completed' });
+        }
+
+        // Check if ride is accepted
+        if (ride.status !== 'accepted') {
+            return res.status(400).json({ message: 'Ride not accepted yet' });
+        }
+
+        // Check OTP
+        if (ride.otp !== otp) {
+            console.log('❌ OTP mismatch:', { expected: ride.otp, provided: otp });
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        // Update ride status
+        ride.status = 'ongoing';
+        ride.startTime = new Date();
+        await ride.save();
+
+        // Notify user and captain via socket if available
+        if (ride.user && ride.user.socketId) {
+            sendMessageToSocketId(ride.user.socketId, {
+                event: 'ride-started',
+                data: ride
+            });
+        }
+        if (ride.captain && ride.captain.socketId) {
+            sendMessageToSocketId(ride.captain.socketId, {
+                event: 'ride-started',
+                data: ride
+            });
+        }
+
+        return res.status(200).json({ message: 'Ride started', ride });
+    } catch (error) {
+        console.error('❌ Error starting ride:', error.message);
+        return res.status(500).json({ message: error.message });
+    }
+    
 }

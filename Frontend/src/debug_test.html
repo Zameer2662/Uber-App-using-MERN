@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <style>
+        .popup {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .popup.show {
+            transform: translateY(0);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Debug Test for Popup</h1>
+    <button onclick="showPopup()">Show Popup (Simulate Ride Confirmed)</button>
+    <button onclick="hidePopup()">Hide Popup</button>
+    
+    <div id="popup" class="popup">
+        <h3>Waiting for Driver!</h3>
+        <p>This is a test popup to check if the styling works.</p>
+    </div>
+
+    <script>
+        function showPopup() {
+            console.log('Showing popup...');
+            document.getElementById('popup').classList.add('show');
+        }
+        
+        function hidePopup() {
+            console.log('Hiding popup...');
+            document.getElementById('popup').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
