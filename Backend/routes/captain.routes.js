@@ -4,7 +4,7 @@ const {body} = require('express-validator');
 const captainController = require('../controllers/captain.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-// Debug route to check captain locations
+// Debug route to check captain locations (development only)
 router.get('/debug-locations', authMiddleware.authCaptain, async (req, res) => {
     try {
         const CaptainModel = require('../models/captain.model');
@@ -34,6 +34,7 @@ router.get('/debug-locations', authMiddleware.authCaptain, async (req, res) => {
     }
 });
 
+// Captain registration route with comprehensive validation
 router.post('/register', [
     body('fullname.firstname').isLength({min: 3}).withMessage('First name must be at least 3 characters long'),
     body('email').isEmail().withMessage('Invalid email format'),
@@ -46,14 +47,16 @@ router.post('/register', [
   captainController.registerCaptain
 );
 
-
+// Captain login route with validation
 router.post('/login', [
     body('email').isEmail().withMessage('Invalid email format'),
     body('password').isLength({min: 6}).withMessage('Password must be at least 6 characters long')
 ], captainController.loginCaptain);
 
+// Get authenticated captain's profile (protected route)
 router.get('/profile', authMiddleware.authCaptain , captainController.getCaptainProfile);
 
+// Captain logout route (protected route)
 router.get('/logout', authMiddleware.authCaptain, captainController.logoutCaptain);
 
 module.exports = router;

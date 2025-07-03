@@ -1,14 +1,17 @@
 const socketIo = require('socket.io');
-const userModel = require('./models/user.model'); // Assuming you have a user model
-const captainModel = require('./models/captain.model'); // Assuming you have a capture model
-const connectedSockets = new Map();
+const userModel = require('./models/user.model');
+const captainModel = require('./models/captain.model');
+const connectedSockets = new Map(); // Track connected sockets
 let io;
 
-
+/**
+ * Initialize Socket.IO server with CORS configuration
+ * @param {Object} server - HTTP server instance
+ */
 function initializeSocket(server) {
     io = socketIo(server, {
         cors: {
-            origin: "*",
+            origin: "*", // Allow all origins for development
             methods: ["GET", "POST"]
         }
     });
@@ -17,15 +20,18 @@ function initializeSocket(server) {
         console.log(`🔌 Socket connected: ${socket.id}`);
         connectedSockets.set(socket.id, socket);
 
+        // Handle user/captain joining their respective rooms
         socket.on('join', async (data) => {
             const { userId, userType } = data;
             console.log(`👤 ${userType} joined:`, { userId, socketId: socket.id });
 
             try {
+                // Update user's socket ID for real-time communication
                 if (userType === 'user') {
                     await userModel.findByIdAndUpdate(userId, { socketId: socket.id }, { new: true });
                     console.log(`✅ User socket updated: ${userId} -> ${socket.id}`);
                 } else if (userType === 'captain') {
+                    // Update captain's socket ID for ride notifications
                     const captain = await captainModel.findByIdAndUpdate(userId, { socketId: socket.id }, { new: true });
                     console.log(`✅ Captain socket updated:`, {
                         name: captain ? `${captain.fullname.firstname} ${captain.fullname.lastname}` : 'Unknown',
@@ -38,9 +44,11 @@ function initializeSocket(server) {
             }
         });
 
+        // Handle captain location updates for ride matching
         socket.on('update-location-captain', async (data) => {
             const { userId, location } = data;
             
+            // Validate location data
             if (
                 !location ||
                 typeof location.ltd !== 'number' ||
@@ -53,6 +61,7 @@ function initializeSocket(server) {
             }
 
             try {
+                // Update captain's location in database
                 const captain = await captainModel.findByIdAndUpdate(userId,
                     {
                         location: {
@@ -74,9 +83,11 @@ function initializeSocket(server) {
             }
         });
 
+        // Handle user location updates for ride tracking
         socket.on('update-location-user', async (data) => {
             const { userId, location } = data;
             
+            // Validate location data
             if (
                 !location ||
                 typeof location.ltd !== 'number' ||
@@ -89,6 +100,7 @@ function initializeSocket(server) {
             }
 
             try {
+                // Update user's location in database
                 const user = await userModel.findByIdAndUpdate(userId,
                     {
                         location: {
@@ -156,6 +168,11 @@ function initializeSocket(server) {
     });
 }
 
+/**
+ * Send message to specific socket ID
+ * @param {string} socketId - Target socket ID
+ * @param {Object} messageObject - Message object containing event and data
+ */
 function sendMessageToSocketId(socketId, messageObject) {
     if (io) {
         io.to(socketId).emit(messageObject.event, messageObject.data);

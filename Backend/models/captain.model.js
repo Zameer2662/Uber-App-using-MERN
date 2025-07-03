@@ -2,7 +2,9 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
+// Captain schema for storing captain/driver information
 const captainSchema = new mongoose.Schema({
+    // Captain's full name
     fullname: {
         firstname: {
             type: String,
@@ -15,6 +17,7 @@ const captainSchema = new mongoose.Schema({
         }
     },
 
+    // Captain's email address (unique identifier)
     email: {
         type: String,
         required: true,
@@ -22,23 +25,26 @@ const captainSchema = new mongoose.Schema({
         lowercase:true,
     },
 
+    // Hashed password for authentication
     password: {
         type: String,
         required: true,
-        select:false,
+        select:false, // Don't include in queries for security
     },
 
+    // Socket ID for real-time communication
     socketId : {
         type:String,
-
     },
 
+    // Captain's availability status
     status : {
         type:String,
         enum:['acive' , 'inactive'],
         default: 'inactive',
     },
 
+    // Vehicle information for ride matching
     vehicle: {
         color:{
             type: String,
@@ -60,9 +66,9 @@ const captainSchema = new mongoose.Schema({
             required: true,
             enum: ['car', 'motorcycle', 'auto'],
         }
-
     },
 
+    // Location data for ride matching and tracking
     location: {
         type: {
             type: String,
@@ -70,7 +76,7 @@ const captainSchema = new mongoose.Schema({
             default: 'Point'
         },
         coordinates: {
-            type: [Number], // [longitude, latitude]
+            type: [Number], // [longitude, latitude] for GeoJSON
         },
         // Keep old fields for backward compatibility
         ltd: {
@@ -80,7 +86,6 @@ const captainSchema = new mongoose.Schema({
             type: Number,
         }
     }
-
 })
 
 // Create 2dsphere index for geospatial queries on coordinates
@@ -88,20 +93,22 @@ captainSchema.index({ 'location.coordinates': '2dsphere' });
 // Also keep index on old format for backward compatibility  
 captainSchema.index({ 'location.ltd': 1, 'location.lng': 1 });
 
+// Generate JWT token for captain authentication
 captainSchema.methods.generateAuthToken =  function () {
     const token = jwt.sign({ _id: this._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     return token;
 }
 
+// Compare provided password with stored hashed password
 captainSchema.methods.comparePassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 }
 
+// Hash password before storing in database
 captainSchema.statics.hashPassword = async function (password) {
- 
     return await bcrypt.hash(password,10);
-
 }
+
 const CaptainModel = mongoose.model('Captain', captainSchema);
 
 module.exports = CaptainModel;

@@ -1,3 +1,4 @@
+// Load environment variables
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -10,19 +11,22 @@ const userRoutes = require('./routes/user.routes');
 const captainRoutes = require('./routes/captain.routes');
 const mapsRoutes = require ('./routes/maps.routes');
 const rideRoutes = require('./routes/ride.routes');
+
+// Connect to MongoDB database
 connectToDb();
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+// Middleware configuration
+app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(express.json()); // Parse JSON request bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
+app.use(cookieParser()); // Parse cookies from request headers
 
+// Default route
 app.get('/' , (req,res) => {
     res.send("Hello World");
-
 });
 
-// Health check endpoint for frontend
+// Health check endpoint for monitoring server status
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
@@ -31,9 +35,10 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.use('/users', userRoutes);
-app.use('/captains', captainRoutes);
-app.use('/maps', mapsRoutes);
-app.use('/rides' , rideRoutes);
+// Route handlers
+app.use('/users', userRoutes); // User authentication and management
+app.use('/captains', captainRoutes); // Captain authentication and management
+app.use('/maps', mapsRoutes); // Google Maps integration endpoints
+app.use('/rides' , rideRoutes); // Ride booking and management
 
 module.exports = app;
