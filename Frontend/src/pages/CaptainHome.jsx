@@ -7,7 +7,7 @@ import gsap from 'gsap'
 import ConfirmRidePopup from '../components/ConfirmRidePopup'
 
 import { CaptainDataContext } from '../context/CaptainContext'
-import SocketContext from '../context/SocketContext'
+import { useSocket } from '../context/SocketContext'
 import axios from 'axios'
 
 
@@ -22,7 +22,7 @@ const CaptainHome = () => {
   const [confirmRidePopupPanel, setConfirmRidePopupPanel] = useState(false);
   const ConfirmRidePopupPanelref = useRef(null)
 
-  const { socket, isConnected, connectionError } = useContext(SocketContext);
+  const { socket, isConnected, connectionError } = useSocket();
   const { captain } = useContext(CaptainDataContext);
 
   // Show connection status

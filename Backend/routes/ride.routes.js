@@ -33,4 +33,10 @@ router.get('/start-ride',
     query('otp').isString().isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
     rideController.startRide
 )
+
+router.post('/end-ride',
+    authMiddleware.authCaptain,
+    body('rideId').isString().withMessage('Invalid ride ID'),
+    rideController.endRide
+)
 module.exports = router

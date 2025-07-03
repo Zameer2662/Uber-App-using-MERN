@@ -129,7 +129,7 @@ module.exports.confirmRide = async(req , res) => {
     console.log('🚨 Captain confirming ride:', { rideId, captainId });
 
     try {
-        const ride = await rideService.confirmRide(rideId, captainId);
+        const ride = await rideService.confirmRide({rideId, captainId});
 
         console.log('📱 Sending ride confirmation to user:', {
             userId: ride.user._id,
@@ -230,4 +230,29 @@ module.exports.startRide = async (req, res) => {
         return res.status(500).json({ message: error.message });
     }
     
+}
+
+module.exports.endRide = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    const { rideId } = req.body;
+
+    try {
+        const ride =  await rideService.endRide({rideId, captain:req.captain});
+
+        sendMessageToSocketId(ride.user.socketId, {
+            event: 'ride-ended',
+            data: ride
+        });
+
+
+
+        return res.status(200).json({ message: 'Ride ended successfully', ride });
+
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+
 }

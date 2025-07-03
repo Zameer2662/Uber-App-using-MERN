@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import gsap from 'gsap'
 import FinishRide from '../components/FinishRide'
+import LiveTracking from '../components/LiveTracking'
 
 const CaptainRiding = () => {
 
@@ -71,8 +72,8 @@ const CaptainRiding = () => {
                 </Link>
             </div>
 
-            <div className='h-4/5 '>
-                <img className='w-full h-full object-cover ' src='https://miro.medium.com/v2/resize:fit:1400/0*gwMx05pqII5hbfmX.gif' />
+            <div className='h-4/5 relative'>
+                <LiveTracking ride={rideData} userType="captain" />
             </div>
 
             {/* Trip Progress Overlay */}
@@ -96,7 +97,7 @@ const CaptainRiding = () => {
                 <h5 className='p-1 text-center absolute w-[93%] top-0 '><i className=" text-3xl text-gray-800 ri-arrow-up-wide-fill"></i></h5>
                 <div>
                     <h4 className='text-xl font-semibold '>
-                        Passenger: {rideData?.user?.fullname ? 
+                        {rideData?.user?.fullname ? 
                             `${rideData.user.fullname.firstname} ${rideData.user.fullname.lastname}` : 
                             'Loading...'
                         }
@@ -104,15 +105,15 @@ const CaptainRiding = () => {
                     <p className='text-sm text-gray-700'>
                         {rideData ? `Earning: Rs.${rideData.fare}` : 'Loading ride info...'}
                     </p>
-                    <p className='text-xs text-gray-600 mt-1'>
+                    {/* <p className='text-xs text-gray-600 mt-1'>
                         {rideData ? `${rideData.pickup} → ${rideData.destination}` : 'Route loading...'}
-                    </p>
+                    </p> */}
                 </div>
-                <button className=' bg-green-600 text-white font-semibold p-3 px-8 rounded-lg'>Complete Ride</button>
+                <button className=' h-12 bg-green-600 text-white font-semibold p-3 px-8 rounded-lg'>Complete Ride</button>
             </div>
 
 
-            <div ref={finishRidePanelRef} className='fixed w-full z-10 bottom-0  translate-y-full bg-white px-3 py-10 pt-12'>
+            <div ref={finishRidePanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 max-h-[90vh] overflow-hidden'>
                 <FinishRide 
                     setFinishRidePanel={setFinishRidePanel} 
                     ride={rideData}

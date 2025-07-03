@@ -1,4 +1,3 @@
-
 const socketIo = require('socket.io');
 const userModel = require('./models/user.model'); // Assuming you have a user model
 const captainModel = require('./models/captain.model'); // Assuming you have a capture model
@@ -107,7 +106,46 @@ function initializeSocket(server) {
                 console.error('❌ Error updating user location:', error);
                 socket.emit('error', { message: 'Failed to update location' });
             }
-        })
+        });
+
+        // Live tracking location updates during rides
+        socket.on('captain-location-update', async (data) => {
+            const { rideId, location } = data;
+            console.log('📍 Captain location update during ride:', { rideId, location });
+            
+            try {
+                // Broadcast captain location to all users in the ride
+                socket.broadcast.emit('captain-location-update', {
+                    rideId,
+                    location
+                });
+            } catch (error) {
+                console.error('❌ Error broadcasting captain location:', error);
+            }
+        });
+
+        socket.on('user-location-update', async (data) => {
+            const { rideId, location } = data;
+            console.log('📍 User location update during ride:', { rideId, location });
+            
+            try {
+                // Broadcast user location to captain
+                socket.broadcast.emit('user-location-update', {
+                    rideId,
+                    location
+                });
+            } catch (error) {
+                console.error('❌ Error broadcasting user location:', error);
+            }
+        });
+
+        // Ride end event: broadcast to user
+        socket.on('ride-ended', (data) => {
+            const { rideId } = data;
+            console.log(`🏁 Ride ended for ride ${rideId}, broadcasting to user`);
+            // broadcast to all except sender
+            socket.broadcast.emit('ride-ended', { rideId });
+        });
 
         socket.on('disconnect', () => {
             console.log(`🔌 Socket disconnected: ${socket.id}`);

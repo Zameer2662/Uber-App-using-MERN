@@ -28,7 +28,7 @@ const CaptainDetails = () => {
                     <h4 className='text-lg font-medium'>{captain.fullname.firstname + " " + captain.fullname.lastname}</h4>
                 </div>
                 <div>
-                    <h4 className='text-xl font-semibold'>22$</h4>
+                    <h4 className='text-xl font-semibold'>Rs.540</h4>
                     <p className='text-sm font-medium text-gray-600'>Earned</p>
                 </div>
 

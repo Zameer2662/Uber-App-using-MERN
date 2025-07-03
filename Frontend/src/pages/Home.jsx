@@ -9,7 +9,7 @@ import VehiclePanel from '../components/VehiclePanel';
 import ConfirmRide from '../components/ConfirmRide';
 import LookingForDriver from '../components/LookingForDriver';
 import WaitingForDriver from '../components/WaitingForDriver';
-import socketContext from '../context/SocketContext';
+import { useSocket } from '../context/SocketContext';
 import userContext, { UserDataContext } from '../context/userContext';
 import { useEffect } from 'react';
 import { use } from 'react';
@@ -31,7 +31,7 @@ const Home = () => {
   const [vehicleType, setVehicleType] = useState(null);
   const [currentRide, setCurrentRide] = useState(null);
 
-  const { socket, isConnected, connectionError } = useContext(socketContext);
+  const { socket, isConnected, connectionError } = useSocket();
   const { user } = useContext(UserDataContext);
 
   const navigate = useNavigate();
@@ -274,28 +274,7 @@ const Home = () => {
     };
   }, [user, socket, isConnected, navigate]);
 
-  // Emergency test function - remove after debugging
-  const testWaitingForDriver = () => {
-    console.log('🧪 Manual test: Showing WaitingForDriver popup');
-    const testRide = {
-      _id: 'test-ride-123',
-      captain: {
-        fullname: { firstname: 'Test', lastname: 'Captain' },
-        vehicle: { plate: 'TEST123', color: 'White', vehicleType: 'car' }
-      },
-      otp: '123456',
-      fare: 150
-    };
-    setCurrentRide(testRide);
-    setWaitingForDriver(true);
-    setvehicleFound(false);
-  };
 
-  // Add to window for testing (remove after debugging)
-  useEffect(() => {
-    window.testWaitingForDriver = testWaitingForDriver;
-    return () => delete window.testWaitingForDriver;
-  }, []);
 
   // Debug state changes
   useEffect(() => {
