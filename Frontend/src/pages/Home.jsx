@@ -234,8 +234,6 @@ const Home = () => {
       console.log('🎯 Current ride set to:', ride._id);
     };
 
-    socket.on('ride-confirmed', handleRideConfirmed);
-
     const handleRideStarted = (ride) => {
       console.log('🚗 Ride started:', ride._id)
       setWaitingForDriver(false);
@@ -248,7 +246,24 @@ const Home = () => {
       })
     };
 
+    const handleRideEnded = (data) => {
+      console.log('🏁 Ride ended event received in Home:', data);
+      // Close any open panels and reset state
+      setWaitingForDriver(false);
+      setvehicleFound(false);
+      setConfirmRidePanel(false);
+      setVehiclePanelOpen(false);
+      setCurrentRide(null);
+      
+      // Stay on home page - user is already home
+      console.log('✅ User redirected to home');
+    };
+
+    socket.on('ride-confirmed', handleRideConfirmed);
     socket.on('ride-started', handleRideStarted);
+    socket.on('ride-ended', handleRideEnded);
+    socket.on('ride-completed', handleRideEnded);
+    socket.on('payment-completed', handleRideEnded);
     
     const updateLocation = () => {
       if (navigator.geolocation) {
@@ -271,6 +286,9 @@ const Home = () => {
       clearInterval(locationInterval);
       socket.off('ride-confirmed', handleRideConfirmed);
       socket.off('ride-started', handleRideStarted);
+      socket.off('ride-ended', handleRideEnded);
+      socket.off('ride-completed', handleRideEnded);
+      socket.off('payment-completed', handleRideEnded);
     };
   }, [user, socket, isConnected, navigate]);
 

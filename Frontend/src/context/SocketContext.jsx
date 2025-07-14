@@ -78,9 +78,25 @@ export const SocketProvider = ({ children }) => {
     };
   }, []);
 
+  // Add global ride completion handler
+  useEffect(() => {
+    if (socket && isConnected) {
+        const handleGlobalRideCompletion = (data) => {
+            console.log('🌍 Global ride completion event:', data);
+            // This can be used for any global state updates
+        };
 
+        socket.on('ride-ended', handleGlobalRideCompletion);
+        socket.on('ride-completed', handleGlobalRideCompletion);
+        socket.on('payment-completed', handleGlobalRideCompletion);
 
- 
+        return () => {
+            socket.off('ride-ended', handleGlobalRideCompletion);
+            socket.off('ride-completed', handleGlobalRideCompletion);
+            socket.off('payment-completed', handleGlobalRideCompletion);
+        };
+    }
+}, [socket, isConnected]);
 
   return (
     <SocketContext.Provider value={{ 

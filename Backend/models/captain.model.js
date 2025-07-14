@@ -40,7 +40,7 @@ const captainSchema = new mongoose.Schema({
     // Captain's availability status
     status : {
         type:String,
-        enum:['acive' , 'inactive'],
+        enum:['active' , 'inactive'],
         default: 'inactive',
     },
 
@@ -77,16 +77,56 @@ const captainSchema = new mongoose.Schema({
         },
         coordinates: {
             type: [Number], // [longitude, latitude] for GeoJSON
-        },
-        // Keep old fields for backward compatibility
-        ltd: {
+            default: [0, 0],
+            validate: {
+                validator: function(v) {
+                    return v && v.length === 2 && 
+                           typeof v[0] === 'number' && 
+                           typeof v[1] === 'number';
+                },
+                message: 'Coordinates must be an array of two numbers [longitude, latitude]'
+            }
+        }
+    },
+
+    // Captain's earnings and statistics
+    earnings: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    stats: {
+        hoursOnline: {
             type: Number,
+            default: 0,
+            min: 0
         },
-        lng: {
+        totalRides: {
             type: Number,
+            default: 0,
+            min: 0
+        },
+        totalDistance: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        rating: {
+            type: Number,
+            default: 5.0,
+            min: 1,
+            max: 5
+        },
+        totalRatings: {
+            type: Number,
+            default: 0,
+            min: 0
         }
     }
-})
+}, { 
+    timestamps: true,
+    versionKey: false
+});
 
 // Create 2dsphere index for geospatial queries on coordinates
 captainSchema.index({ 'location.coordinates': '2dsphere' });
@@ -108,6 +148,25 @@ captainSchema.methods.comparePassword = async function (password) {
 captainSchema.statics.hashPassword = async function (password) {
     return await bcrypt.hash(password,10);
 }
+
+// Pre-save middleware to ensure default values
+captainSchema.pre('save', function(next) {
+    if (this.earnings === undefined || this.earnings === null) {
+        this.earnings = 0;
+    }
+    
+    if (!this.stats) {
+        this.stats = {
+            hoursOnline: 0,
+            totalRides: 0,
+            totalDistance: 0,
+            rating: 5.0,
+            totalRatings: 0
+        };
+    }
+    
+    next();
+});
 
 const CaptainModel = mongoose.model('Captain', captainSchema);
 

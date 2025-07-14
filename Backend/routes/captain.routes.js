@@ -59,4 +59,24 @@ router.get('/profile', authMiddleware.authCaptain , captainController.getCaptain
 // Captain logout route (protected route)
 router.get('/logout', authMiddleware.authCaptain, captainController.logoutCaptain);
 
+// Earnings and stats management routes
+const { 
+    updateEarnings, 
+    updateStats, 
+    getEarnings, 
+    resetEarnings 
+} = require('../controllers/captain.controller');
+
+// Update earnings route (protected route)
+router.patch('/update-earnings', authMiddleware.authCaptain, updateEarnings);
+
+// Update stats route (protected route)
+router.patch('/update-stats', authMiddleware.authCaptain, updateStats);
+
+// Get earnings route (protected route)
+router.get('/earnings', authMiddleware.authCaptain, getEarnings);
+
+// Reset earnings route (protected route)
+router.patch('/reset-earnings', authMiddleware.authCaptain, resetEarnings);
+
 module.exports = router;

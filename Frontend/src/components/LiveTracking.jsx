@@ -10,6 +10,8 @@ const LiveTracking = ({ ride, userType }) => {
     const [pickupCoords, setPickupCoords] = useState(null)
     const [destinationCoords, setDestinationCoords] = useState(null)
     const [captainLocation, setCaptainLocation] = useState(null)
+    const [routeCoordinates, setRouteCoordinates] = useState([])
+    const [showRoute, setShowRoute] = useState(false)
     const watchId = useRef(null)
 
     // Map marker icons
@@ -222,6 +224,33 @@ const LiveTracking = ({ ride, userType }) => {
             map.panTo(currentLocation)
         }
     }, [map, currentLocation])
+
+    // Display route from Mapbox API
+    const displayRoute = async (pickup, destination) => {
+        try {
+            const response = await fetch(
+                `https://api.mapbox.com/directions/v5/mapbox/driving/${pickup.lng},${pickup.lat};${destination.lng},${destination.lat}?geometries=geojson&access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`
+            );
+            const data = await response.json();
+            
+            if (data.routes && data.routes[0]) {
+                const route = data.routes[0].geometry.coordinates;
+                setRouteCoordinates(route);
+                setShowRoute(true);
+            }
+        } catch (error) {
+            console.error('Error fetching route:', error);
+        }
+    };
+
+    // Handle ride confirmation
+    const handleConfirmRide = (rideData) => {
+        // Display route on map
+        displayRoute(rideData.pickup, rideData.destination);
+        
+        // Other confirmation logic
+        setRideConfirmed(true);
+    };
 
     // Google Maps API key
     const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY

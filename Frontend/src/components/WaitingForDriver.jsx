@@ -1,10 +1,17 @@
-import React from 'react'
- 
- const WaitingForDriver = (props) => {
-   const { ride, pickup, destination, setWaitingForDriver } = props;
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import SuccessPopup from './SuccessPopup'
+import { useSocket } from '../context/SocketContext'
+
+const WaitingForDriver = React.memo(({ ride, pickup, destination, setWaitingForDriver }) => {
+    const [completing, setCompleting] = useState(false);
+    const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+    const navigate = useNavigate();
+    const { socket, isConnected } = useSocket();
    
-   // Add debug logging
-   console.log('🔍 WaitingForDriver rendered with:', {
+    // Add debug logging
+    console.log('🔍 WaitingForDriver rendered with:', {
      hasRide: !!ride,
      rideId: ride?._id,
      pickup,
@@ -12,84 +19,221 @@ import React from 'react'
      captain: ride?.captain?.fullname || 'No captain data',
      otp: ride?.otp || 'No OTP'
    });
-   
+    
+    // Setup socket listener for captain ride completion
+    useEffect(() => {
+        if (socket && isConnected && ride?._id) {
+            console.log('🔗 Setting up ride completion listeners in WaitingForDriver for ride:', ride._id);
+            
+            const handleRideEnded = (data) => {
+                console.log('🏁 Ride ended event received:', data);
+                if (data.rideId === ride._id || data.ride?._id === ride._id) {
+                    setShowSuccessPopup(true);
+                }
+            };
+
+            const handleRideCompleted = (data) => {
+                console.log('🎉 Ride completed event received:', data);
+                if (data.rideId === ride._id || data.ride?._id === ride._id) {
+                    setShowSuccessPopup(true);
+                }
+            };
+
+            const handlePaymentCompleted = (data) => {
+                console.log('💰 Payment completed event received:', data);
+                if (data.rideId === ride._id || data.ride?._id === ride._id) {
+                    setShowSuccessPopup(true);
+                }
+            };
+
+            // Listen for all possible completion events
+            socket.on('ride-ended', handleRideEnded);
+            socket.on('ride-completed', handleRideCompleted);
+            socket.on('payment-completed', handlePaymentCompleted);
+
+            return () => {
+                console.log('🧹 Cleaning up all ride completion listeners');
+                socket.off('ride-ended', handleRideEnded);
+                socket.off('ride-completed', handleRideCompleted);
+                socket.off('payment-completed', handlePaymentCompleted);
+            };
+        }
+    }, [socket, isConnected, ride?._id]);
+    
+    // Optimize finish ride handler
+    const handleFinishRide = useCallback(async () => {
+        if (!ride?._id || completing) return;
+
+        setCompleting(true);
+        try {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                localStorage.removeItem('token');
+                navigate('/login');
+                return;
+            }
+            
+            const response = await axios.post(
+                `${import.meta.env.VITE_BASE_URL}/rides/complete/${ride._id}`,
+                {
+                    fare: ride.fare || 0,
+                    distance: ride.distance || 0,
+                    completedBy: 'user'
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                }
+            );
+
+            // Show success popup instead of direct navigation
+            setShowSuccessPopup(true);
+            
+        } catch (error) {
+            if (error.response?.status === 401) {
+                localStorage.removeItem('token');
+                navigate('/login');
+            } else {
+                navigate('/home');
+            }
+        } finally {
+            setCompleting(false);
+        }
+    }, [ride, completing, navigate]);
+
+    // Handle popup close and redirect to user home
+    const handlePopupClose = useCallback(() => {
+        setShowSuccessPopup(false);
+        if (setWaitingForDriver) {
+            setWaitingForDriver(false);
+        }
+        navigate('/home');
+    }, [navigate, setWaitingForDriver]);
+
    return (
-     <div>
-            <h5 className='p-1 text-center absolute w-[93%] top-0 ' onClick={() => {
-                setWaitingForDriver && setWaitingForDriver(false)
-            }}><i className=" text-3xl text-gray-200 ri-arrow-down-wide-fill"></i></h5>
+        <>
+            <div className='h-full bg-white flex flex-col'>
+                {/* Header with close button */}
+                <div className='flex-shrink-0 p-3 border-b border-gray-200'>
+                    <div className='flex justify-center'>
+                        <button 
+                            onClick={() => setWaitingForDriver && setWaitingForDriver(false)}
+                            className='p-2 hover:bg-gray-100 rounded-full'
+                        >
+                            <i className="text-xl text-gray-400 ri-arrow-down-wide-fill"></i>
+                        </button>
+                    </div>
+                </div>
 
-            <h3 className='text-2xl font-semibold mb-5'>Captain is Coming!</h3>
-
-            <div className=' flex items-center justify-between'>
-                 <img className="h-15" src='https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,h_368,w_552/v1682350473/assets/97/e2a99c-c349-484f-b6b0-3cea1a8331b5/original/UberBlack.png' />
-                 <div className='text-right'>
-                        <h2 className='text-lg font-medium'>
-                            {ride?.captain?.fullname ? 
-                                `${ride.captain.fullname.firstname} ${ride.captain.fullname.lastname}` : 
-                                'Captain'
-                            }
-                        </h2>
-                        <h4 className='text-xl font-semibold -mt-1 -mb-1'>
-                            {ride?.captain?.vehicle?.plate || 'Vehicle Number'}
-                        </h4>
-                        <p className='text-sm text-gray-600'>
-                            {ride?.captain?.vehicle?.color || 'Color'} {ride?.captain?.vehicle?.vehicleType || 'Vehicle'}
-                        </p>
-                 </div>
-            </div>
-
-            {/* OTP Display */}
-            {ride?.otp && (
-                <div className='bg-yellow-100 border border-yellow-400 rounded-lg p-4 mt-4'>
+                {/* Main content */}
+                <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+                    {/* Title */}
                     <div className='text-center'>
-                        <h3 className='text-lg font-semibold text-yellow-800'>Ride OTP</h3>
-                        <div className='text-3xl font-bold text-yellow-900 tracking-widest mt-2'>
-                            {ride.otp}
+                        <h3 className='text-lg font-bold text-gray-900'>Captain is Coming!</h3>
+                        <p className='text-sm text-gray-600'>Your ride has been confirmed</p>
+                    </div>
+
+                    {/* Captain info */}
+                    <div className='bg-gray-50 rounded-lg p-3'>
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center space-x-3'>
+                                <div className='w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center'>
+                                    <i className="text-white ri-user-line"></i>
+                                </div>
+                                <div>
+                                    <h2 className='text-sm font-semibold text-gray-900'>
+                                        {ride?.captain?.fullname ? 
+                                            `${ride.captain.fullname.firstname} ${ride.captain.fullname.lastname}` : 
+                                            'Captain'
+                                        }
+                                    </h2>
+                                    <p className='text-xs text-gray-600'>
+                                        {ride?.captain?.vehicle?.color || 'Color'} {ride?.captain?.vehicle?.vehicleType || 'Vehicle'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className='bg-white px-2 py-1 rounded border'>
+                                <span className='text-xs font-semibold text-gray-900'>
+                                    {ride?.captain?.vehicle?.plate || 'Vehicle Number'}
+                                </span>
+                            </div>
                         </div>
-                        <p className='text-sm text-yellow-700 mt-2'>Share this OTP with your captain</p>
+                    </div>
+
+                    {/* OTP */}
+                    {ride?.otp && (
+                        <div className='bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center'>
+                            <h3 className='text-sm font-semibold text-gray-900'>Ride OTP</h3>
+                            <div className='text-xl font-bold text-gray-900 my-1'>
+                                {ride.otp}
+                            </div>
+                            <p className='text-xs text-gray-600'>Share with captain</p>
+                        </div>
+                    )}
+
+                    {/* Trip details */}
+                    <div className='bg-gray-50 rounded-lg p-3'>
+                        <h4 className='text-sm font-semibold text-gray-900 mb-2'>Trip Details</h4>
+                        
+                        <div className='space-y-2'>
+                            <div className='flex items-start space-x-2'>
+                                <div className='w-4 h-4 bg-green-500 rounded-full mt-1'></div>
+                                <div>
+                                    <p className='text-xs font-medium text-gray-900'>Pickup</p>
+                                    <p className='text-xs text-gray-600'>{pickup || 'Your Location'}</p>
+                                </div>
+                            </div>
+
+                            <div className='flex items-start space-x-2'>
+                                <div className='w-4 h-4 bg-red-500 rounded-full mt-1'></div>
+                                <div>
+                                    <p className='text-xs font-medium text-gray-900'>Destination</p>
+                                    <p className='text-xs text-gray-600'>{destination || 'Your Destination'}</p>
+                                </div>
+                            </div>
+
+                            <div className='flex items-start space-x-2'>
+                                <div className='w-4 h-4 bg-yellow-500 rounded-full mt-1'></div>
+                                <div>
+                                    <p className='text-xs font-medium text-gray-900'>Fare</p>
+                                    <p className='text-xs text-gray-600'>Rs.{ride?.fare || '0'}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            )}
 
-            {/* Status Message */}
-            <div className='bg-green-100 border border-green-400 rounded-lg p-3 mt-4'>
-                <div className='text-center'>
-                    <p className='text-green-800 font-medium'>🚗 Captain is on the way!</p>
-                    <p className='text-sm text-green-600'>Please wait at your pickup location</p>
+                {/* Bottom section */}
+                <div className='flex-shrink-0 bg-white border-t border-gray-200 p-4'>
+
+                    <button 
+                        onClick={handleFinishRide}
+                        disabled={completing}
+                        className={`w-full py-3 rounded-lg font-semibold text-white ${
+                            completing 
+                                ? 'bg-gray-400' 
+                                : 'bg-green-600'
+                        }`}
+                    >
+                        {completing ? 'Completing...' : 'Complete Ride'}
+                    </button>
                 </div>
             </div>
 
-            <div className='flex gap-2 flex-col justify-between items-center'>
-            <div className='w-full mt-5 '>
-                <div className='flex items-center gap-5  p-3 border-b-1'>
-                    <i className=" text-lg ri-map-pin-line"></i>
-                    <div className=''>
-                        <h3 className='text-lg font-medium'>Pickup</h3>
-                        <p className='text-sm -mt-1 text-gray-600'>{pickup || 'Your Location'}</p>
-                    </div>
-                </div>
+            <SuccessPopup 
+                isVisible={showSuccessPopup}
+                onClose={handlePopupClose}
+                message="Ride Completed Successfully!"
+                amount={ride?.fare}
+            />
+        </>
+    );
+});
 
-                <div className='flex items-center gap-5 p-3 border-b-1'>
-                    <i className="ri-map-pin-fill"></i>
-                    <div className=''>
-                        <h3 className='text-lg font-medium'>Destination</h3>
-                        <p className='text-sm -mt-1 text-gray-600'>{destination || 'Your Destination'}</p>
-                    </div>
-                </div>
+WaitingForDriver.displayName = 'WaitingForDriver';
 
-                <div className='flex items-center gap-5  p-3 '>
-                    <i className="ri-currency-fill"></i>
-                    <div className=''>
-                        <h3 className='text-lg font-medium'>Rs.{ride?.fare || '0'}</h3>
-                        <p className='text-sm -mt-1 text-gray-600'>Cash Payment</p>
-                    </div>
-                </div>
-            </div>
-            </div>
+export default WaitingForDriver;
 
-        </div>
-   )
- }
- 
- export default WaitingForDriver

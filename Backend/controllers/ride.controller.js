@@ -3,6 +3,9 @@ const {validationResult} = require ('express-validator');
 const mapService = require ('../Services/maps.service');
 const rideModel = require('../models/ride.model');
 const {sendMessageToSocketId} = require('../socket');
+const Ride = require('../models/ride.model');
+const Captain = require('../models/captain.model');
+const mongoose = require('mongoose');
 
 
 module.exports.createRide = async(req , res) => {
@@ -256,3 +259,91 @@ module.exports.endRide = async (req, res) => {
     }
 
 }
+
+module.exports.completeRide = async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const { fare, distance, completedBy } = req.body;
+        
+        console.log('Completing ride:', rideId, 'by:', completedBy);
+        
+        // Validate rideId
+        if (!mongoose.Types.ObjectId.isValid(rideId)) {
+            return res.status(400).json({ message: 'Invalid ride ID' });
+        }
+        
+        const ride = await Ride.findById(rideId).populate('captain user');
+        
+        if (!ride) {
+            return res.status(404).json({ message: 'Ride not found' });
+        }
+        
+        // Check authorization - allow both captain and user to complete
+        let isAuthorized = false;
+        if (req.captain && ride.captain._id.toString() === req.captain._id.toString()) {
+            isAuthorized = true;
+        } else if (req.user && ride.user._id.toString() === req.user._id.toString()) {
+            isAuthorized = true;
+        }
+        
+        if (!isAuthorized) {
+            return res.status(403).json({ message: 'Unauthorized to complete this ride' });
+        }
+        
+        if (ride.status === 'completed') {
+            return res.status(200).json({ 
+                message: 'Ride already completed',
+                ride: ride,
+                captain: await Captain.findById(ride.captain._id)
+            });
+        }
+        
+        // Update ride status
+        ride.status = 'completed';
+        ride.endTime = new Date();
+        if (fare !== undefined) ride.fare = Number(fare);
+        if (distance !== undefined) ride.distance = Number(distance);
+        
+        await ride.save();
+        
+        // Update captain earnings and stats
+        const captain = await Captain.findById(ride.captain._id);
+        
+        if (captain) {
+            const fareAmount = Number(fare) || Number(ride.fare) || 0;
+            const rideDistance = Number(distance) || Number(ride.distance) || 0;
+            
+            captain.earnings = (captain.earnings || 0) + fareAmount;
+            
+            if (!captain.stats) {
+                captain.stats = {
+                    hoursOnline: 0,
+                    totalRides: 0,
+                    totalDistance: 0,
+                    rating: 5.0,
+                    totalRatings: 0
+                };
+            }
+            
+            captain.stats.totalRides = (captain.stats.totalRides || 0) + 1;
+            captain.stats.totalDistance = (captain.stats.totalDistance || 0) + rideDistance;
+            
+            await captain.save();
+            
+            console.log('Captain earnings updated:', captain.earnings);
+        }
+        
+        res.status(200).json({ 
+            message: 'Ride completed successfully',
+            ride: ride,
+            captain: captain
+        });
+        
+    } catch (error) {
+        console.error('Error completing ride:', error);
+        res.status(500).json({ 
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};

@@ -97,8 +97,27 @@ useEffect(() => {
     setRidePopupPanel(true);
   });
 
+  // Listen for ride completion events
+  const handleRideEnded = (data) => {
+    console.log('🏁 Ride ended event received in CaptainHome:', data);
+    // Close any open panels and reset state
+    setRidePopupPanel(false);
+    setConfirmRidePopupPanel(false);
+    setRide(null);
+    
+    // Stay on captain home page - captain is already home
+    console.log('✅ Captain redirected to home');
+  };
+
+  socket.on('ride-ended', handleRideEnded);
+  socket.on('ride-completed', handleRideEnded);
+  socket.on('payment-completed', handleRideEnded);
+
   return () => {
     socket.off('new-ride');
+    socket.off('ride-ended', handleRideEnded);
+    socket.off('ride-completed', handleRideEnded);
+    socket.off('payment-completed', handleRideEnded);
   };
 }, [socket, isConnected]);
 

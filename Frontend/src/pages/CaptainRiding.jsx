@@ -90,38 +90,36 @@ const CaptainRiding = () => {
                 )}
             </div>
 
-            <div className='h-1/5  p-6 bg-yellow-400  flex  items-center justify-between relative '
-            onClick={()=>{
-                setFinishRidePanel(true)
-            }} >
-                <h5 className='p-1 text-center absolute w-[93%] top-0 '><i className=" text-3xl text-gray-800 ri-arrow-up-wide-fill"></i></h5>
+            <div className='h-1/5 p-4 bg-yellow-400 flex items-center justify-between'>
                 <div>
-                    <h4 className='text-xl font-semibold '>
+                    <h4 className='text-lg font-semibold'>
                         {rideData?.user?.fullname ? 
                             `${rideData.user.fullname.firstname} ${rideData.user.fullname.lastname}` : 
                             'Loading...'
                         }
                     </h4>
-                    <p className='text-sm text-gray-700'>
-                        {rideData ? `Earning: Rs.${rideData.fare}` : 'Loading ride info...'}
+                    <p className='text-sm text-gray-600'>
+                        {rideData ? `Earning: Rs.${rideData.fare} • ${rideData.distance || '0.0'} KM` : 'Loading ride info...'}
                     </p>
-                    {/* <p className='text-xs text-gray-600 mt-1'>
-                        {rideData ? `${rideData.pickup} → ${rideData.destination}` : 'Route loading...'}
-                    </p> */}
                 </div>
-                <button className=' h-12 bg-green-600 text-white font-semibold p-3 px-8 rounded-lg'>Complete Ride</button>
+                <button 
+                    onClick={() => setFinishRidePanel(true)}
+                    className='bg-green-600 text-white font-medium py-3 px-6 rounded-lg'
+                >
+                    Complete Payment
+                </button>
             </div>
 
-
-            <div ref={finishRidePanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 max-h-[90vh] overflow-hidden'>
+            <div ref={finishRidePanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white'>
                 <FinishRide 
-                    setFinishRidePanel={setFinishRidePanel} 
                     ride={rideData}
+                    setFinishRidePanel={setFinishRidePanel}
                 />
             </div>
-
         </div>
     )
 }
 
 export default CaptainRiding
+
+

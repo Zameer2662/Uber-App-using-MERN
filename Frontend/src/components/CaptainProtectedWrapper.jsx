@@ -6,20 +6,20 @@ const CaptainProtectedWrapper = ({ children }) => {
     const context = useContext(CaptainDataContext);
     const navigate = useNavigate();
 
+    // Check if context is available
     if (!context) {
         console.error('CaptainProtectedWrapper must be used within CaptainContext');
-        navigate('/captain-login');
-        return null;
+        return <div>Context Error</div>;
     }
 
     const { captain, loading, isLoggedIn } = context;
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        if (!token) {
+        if (!token || (!isLoggedIn && !loading)) {
             navigate('/captain-login');
         }
-    }, [navigate]);
+    }, [navigate, isLoggedIn, loading]);
 
     if (loading) {
         return (
@@ -29,9 +29,12 @@ const CaptainProtectedWrapper = ({ children }) => {
         );
     }
 
-    if (!isLoggedIn) {
-        navigate('/captain-login');
-        return null;
+    if (!isLoggedIn || !captain) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <div className="text-lg">Redirecting to login...</div>
+            </div>
+        );
     }
 
     return children;

@@ -3,6 +3,8 @@ const router = express.Router();
 const { body, query } = require('express-validator')
 const authMiddleware = require('../middlewares/auth.middleware')
 const rideController = require('../controllers/ride.controller')
+const { authCaptain, authUserOrCaptain } = require('../middlewares/auth.middleware');
+const { completeRide } = require('../controllers/ride.controller');
 
 // Create new ride request (user only)
 router.post('/create',
@@ -43,4 +45,49 @@ router.post('/end-ride',
     rideController.endRide
 )
 
-module.exports = router
+// Complete ride route - accessible by both user and captain
+router.post('/complete/:rideId', async (req, res, next) => {
+    try {
+        // Try captain auth first
+        const captainToken = req.cookies.token || req.headers.authorization?.split(' ')[1];
+        
+        if (captainToken) {
+            const jwt = require('jsonwebtoken');
+            const Captain = require('../models/captain.model');
+            
+            try {
+                const decoded = jwt.verify(captainToken, process.env.JWT_SECRET);
+                const captain = await Captain.findById(decoded._id);
+                
+                if (captain) {
+                    req.captain = captain;
+                    return next();
+                }
+            } catch (err) {
+                // If captain auth fails, try user auth
+            }
+        }
+        
+        // Try user auth
+        const User = require('../models/user.model');
+        
+        try {
+            const decoded = jwt.verify(captainToken, process.env.JWT_SECRET);
+            const user = await User.findById(decoded._id);
+            
+            if (user) {
+                req.user = user;
+                return next();
+            }
+        } catch (err) {
+            // If both fail, return unauthorized
+        }
+        
+        return res.status(401).json({ message: 'Unauthorized' });
+        
+    } catch (error) {
+        return res.status(401).json({ message: 'Authentication failed' });
+    }
+}, completeRide);
+
+module.exports = router;
